@@ -1,5 +1,6 @@
 package com.insightweave.entity;
 
+import com.insightweave.common.AuditedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -7,7 +8,7 @@ import lombok.*;
 @Table(name = "documents")
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
-public class Document {
+public class Document extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
