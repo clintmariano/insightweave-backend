@@ -1,6 +1,7 @@
 package com.insightweave.config;
 
 import org.springframework.http.*;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +33,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDeleteMissing(org.springframework.dao.EmptyResultDataAccessException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("status", 404, "error", "Document not found"));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String,String>> methodNotAllowed(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<java.util.Map<String,String>> badRequest(IllegalArgumentException ex) {
+        // You can also choose 404 here when message starts with "Document not found" / "File not found"
+        return ResponseEntity.badRequest().body(java.util.Map.of("error", ex.getMessage()));
     }
 
     // 🟠 Handles entity not found (like repo.findById(id).orElseThrow())
