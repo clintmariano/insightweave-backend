@@ -9,6 +9,7 @@ public interface DocumentMapper {
 
     // Create: request -> entity
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "attachments", ignore = true)
     Document toEntity(DocumentCreateRequest req);
 
     // Read: entity -> response
@@ -17,5 +18,6 @@ public interface DocumentMapper {
     // Update existing entity (for PUT/PATCH)
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "attachments", ignore = true)
     void updateEntity(@MappingTarget Document target, DocumentCreateRequest req);
 }
