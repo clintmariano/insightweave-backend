@@ -8,5 +8,6 @@ public record FileAssetDto(
         String contentType,
         long sizeBytes,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String extractedText
 ) {}

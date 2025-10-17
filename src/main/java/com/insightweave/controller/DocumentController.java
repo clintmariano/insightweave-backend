@@ -47,6 +47,13 @@ public class DocumentController {
         return repo.findAll(pageable).map(mapper::toResponse);
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a single document by ID")
+    public ResponseEntity<DocumentResponse> getById(@PathVariable Long id) {
+        Document doc = repo.findById(id).orElseThrow();
+        return ResponseEntity.ok(mapper.toResponse(doc));
+    }
+
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing document")
     public ResponseEntity<DocumentResponse> update(

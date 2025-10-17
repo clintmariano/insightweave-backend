@@ -4,7 +4,7 @@ import com.insightweave.dto.*;
 import com.insightweave.entity.Document;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR, uses = FileAssetMapper.class)
 public interface DocumentMapper {
 
     // Create: request -> entity
@@ -12,7 +12,7 @@ public interface DocumentMapper {
     @Mapping(target = "attachments", ignore = true)
     Document toEntity(DocumentCreateRequest req);
 
-    // Read: entity -> response
+    // Read: entity -> response (attachments are mapped automatically using FileAssetMapper)
     DocumentResponse toResponse(Document entity);
 
     // Update existing entity (for PUT/PATCH)

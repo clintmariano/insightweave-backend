@@ -20,4 +20,7 @@ public class FileAsset extends AuditedEntity {
 
     @Column(length = 64, nullable = false)   // SHA-256 hex
     private String sha256;
+
+    @Column(columnDefinition = "TEXT")       // Extracted text content for search/analysis
+    private String extractedText;
 }

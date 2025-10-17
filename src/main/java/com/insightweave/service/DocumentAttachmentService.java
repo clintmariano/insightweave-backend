@@ -17,6 +17,7 @@ public class DocumentAttachmentService {
     private final DocumentRepository docRepo;
     private final FileAssetRepository fileRepo;
     private final StorageService storage;
+    private final TextExtractionService textExtraction;
 
     @Transactional
     public FileAsset addAttachment(Long docId, MultipartFile file) throws Exception {
@@ -24,12 +25,26 @@ public class DocumentAttachmentService {
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docId));
 
         var s = storage.save(file);
+
+        // Extract text if the file type is supported
+        String extractedText = "";
+        String contentType = s.type() != null ? s.type() : "application/octet-stream";
+        if (textExtraction.isTextExtractable(contentType)) {
+            try {
+                extractedText = textExtraction.extractText(file.getInputStream(), s.original());
+            } catch (Exception e) {
+                // Log but don't fail the upload if text extraction fails
+                // The TextExtractionService already logs the error
+            }
+        }
+
         var asset = FileAsset.builder()
                 .originalFilename(s.original())
-                .contentType(s.type() != null ? s.type() : "application/octet-stream")
+                .contentType(contentType)
                 .sizeBytes(s.size())
                 .storageKey(s.key())
                 .sha256(s.sha256())
+                .extractedText(extractedText.isEmpty() ? null : extractedText)
                 .build();
 
         asset = fileRepo.save(asset);         // persist the row
