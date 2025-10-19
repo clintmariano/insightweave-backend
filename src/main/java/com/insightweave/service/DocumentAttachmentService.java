@@ -6,10 +6,12 @@ import com.insightweave.repository.DocumentRepository;
 import com.insightweave.repository.FileAssetRepository;
 import com.insightweave.storage.StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DocumentAttachmentService {
@@ -18,13 +20,20 @@ public class DocumentAttachmentService {
     private final FileAssetRepository fileRepo;
     private final StorageService storage;
     private final TextExtractionService textExtraction;
+    private final SummaryService summaryService;
+    private final AsyncSummaryService asyncSummaryService;
 
     @Transactional
     public FileAsset addAttachment(Long docId, MultipartFile file) throws Exception {
         Document doc = docRepo.findById(docId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docId));
 
+        log.info("Starting file upload: docId={}, fileName={}, size={} bytes",
+                docId, file.getOriginalFilename(), file.getSize());
+
+        // Save file to storage - this may throw IOException if disk is full, etc.
         var s = storage.save(file);
+        log.debug("File saved to storage: key={}, sha256={}", s.key(), s.sha256());
 
         // Extract text if the file type is supported
         String extractedText = "";
@@ -32,9 +41,10 @@ public class DocumentAttachmentService {
         if (textExtraction.isTextExtractable(contentType)) {
             try {
                 extractedText = textExtraction.extractText(file.getInputStream(), s.original());
+                log.debug("Text extraction completed: {} characters extracted", extractedText.length());
             } catch (Exception e) {
                 // Log but don't fail the upload if text extraction fails
-                // The TextExtractionService already logs the error
+                log.warn("Text extraction failed for file {}: {}", s.original(), e.getMessage());
             }
         }
 
@@ -50,6 +60,16 @@ public class DocumentAttachmentService {
         asset = fileRepo.save(asset);         // persist the row
         doc.getAttachments().add(asset);      // maintain in-memory list
         docRepo.save(doc);                    // keep owning aggregate consistent
+
+        log.info("File upload completed successfully: fileId={}, fileName={}",
+                asset.getId(), asset.getOriginalFilename());
+
+        // Generate summary asynchronously if text was extracted
+        if (asset.getExtractedText() != null && !asset.getExtractedText().isBlank()) {
+            log.info("Scheduling async summary generation for fileAssetId={}", asset.getId());
+            asyncSummaryService.generateSummaryAsync(asset.getId(), asset.getExtractedText());
+        }
+
         return asset;
     }
 

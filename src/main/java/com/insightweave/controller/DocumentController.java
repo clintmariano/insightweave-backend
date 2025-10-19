@@ -4,6 +4,7 @@ import com.insightweave.dto.*;
 import com.insightweave.entity.Document;
 import com.insightweave.mapper.DocumentMapper;
 import com.insightweave.repository.DocumentRepository;
+import com.insightweave.service.DocumentResponseEnricher;
 import com.insightweave.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -24,18 +25,21 @@ public class DocumentController {
     private final DocumentRepository repo;
     private final DocumentMapper mapper;
     private final DocumentService documentService;
+    private final DocumentResponseEnricher enricher;
 
-    public DocumentController(DocumentRepository repo, DocumentMapper mapper, DocumentService documentService) {
+    public DocumentController(DocumentRepository repo, DocumentMapper mapper,
+                            DocumentService documentService, DocumentResponseEnricher enricher) {
         this.repo = repo;
         this.mapper = mapper;
         this.documentService = documentService;
+        this.enricher = enricher;
     }
 
     @PostMapping
     @Operation(summary = "Create a new document")
     public ResponseEntity<DocumentResponse> create(@Valid @RequestBody DocumentCreateRequest req) {
         Document saved = repo.save(mapper.toEntity(req));
-        return ResponseEntity.ok(mapper.toResponse(saved));
+        return ResponseEntity.ok(enricher.enrich(mapper.toResponse(saved)));
     }
 
     @GetMapping
@@ -44,14 +48,14 @@ public class DocumentController {
             @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        return repo.findAll(pageable).map(mapper::toResponse);
+        return repo.findAll(pageable).map(mapper::toResponse).map(enricher::enrich);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a single document by ID")
     public ResponseEntity<DocumentResponse> getById(@PathVariable Long id) {
         Document doc = repo.findById(id).orElseThrow();
-        return ResponseEntity.ok(mapper.toResponse(doc));
+        return ResponseEntity.ok(enricher.enrich(mapper.toResponse(doc)));
     }
 
     @PutMapping("/{id}")
@@ -63,7 +67,7 @@ public class DocumentController {
         var existing = repo.findById(id).orElseThrow();
         mapper.updateEntity(existing, req);
         var saved = repo.save(existing);
-        return ResponseEntity.ok(mapper.toResponse(saved));
+        return ResponseEntity.ok(enricher.enrich(mapper.toResponse(saved)));
     }
 
     @DeleteMapping("/{id}")
@@ -80,6 +84,6 @@ public class DocumentController {
             @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        return repo.search(q, pageable).map(mapper::toResponse);
+        return repo.search(q, pageable).map(mapper::toResponse).map(enricher::enrich);
     }
 }

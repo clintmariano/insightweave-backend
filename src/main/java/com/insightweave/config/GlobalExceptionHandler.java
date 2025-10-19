@@ -1,16 +1,22 @@
 package com.insightweave.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -91,9 +97,49 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), null);
     }
 
-    // 500: fallback (don’t leak internals)
+    // 413: file size exceeds limit
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        String msg = "File size exceeds maximum allowed size";
+        log.warn("File upload rejected: {}", msg);
+        return body(HttpStatus.PAYLOAD_TOO_LARGE, "File Too Large", msg, null);
+    }
+
+    // 500: file I/O errors during upload
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<Map<String, Object>> handleIOException(IOException ex) {
+        log.error("I/O error during file operation: {}", ex.getMessage(), ex);
+        String msg = "Failed to process file: " + ex.getMessage();
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "File Processing Error", msg, null);
+    }
+
+    // 500: file system errors (disk full, permission denied, etc.)
+    @ExceptionHandler({FileSystemException.class, AccessDeniedException.class})
+    public ResponseEntity<Map<String, Object>> handleFileSystemException(Exception ex) {
+        log.error("File system error: {}", ex.getMessage(), ex);
+        String msg = "File system error: Unable to save file";
+        if (ex instanceof NoSuchFileException) {
+            msg = "File not found in storage";
+        } else if (ex instanceof FileAlreadyExistsException) {
+            msg = "File already exists";
+        } else if (ex instanceof AccessDeniedException) {
+            msg = "Access denied to file storage";
+        }
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Storage Error", msg, null);
+    }
+
+    // 500: security/algorithm errors
+    @ExceptionHandler(NoSuchAlgorithmException.class)
+    public ResponseEntity<Map<String, Object>> handleNoSuchAlgorithmException(NoSuchAlgorithmException ex) {
+        log.error("Cryptographic algorithm error: {}", ex.getMessage(), ex);
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Configuration Error",
+                   "Server configuration error - please contact support", null);
+    }
+
+    // 500: fallback (don't leak internals)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "An unexpected error occurred", null);
     }
 }

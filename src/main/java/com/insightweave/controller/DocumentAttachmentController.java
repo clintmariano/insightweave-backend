@@ -43,10 +43,18 @@ public class DocumentAttachmentController {
         var doc = docRepo.findById(docId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + docId));
 
-        if (file.isEmpty()) throw new ResponseStatusException(BAD_REQUEST, "Empty file");
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "File is empty");
+        }
+
+        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "File name is missing");
+        }
+
         var ct = file.getContentType();
         if (ct == null || !ALLOWED.contains(ct)) {
-            throw new ResponseStatusException(BAD_REQUEST, "Unsupported content type: " + ct);
+            throw new ResponseStatusException(BAD_REQUEST,
+                "Unsupported file type. Allowed types: PDF, Plain Text, PNG, JPEG");
         }
 
         var saved = svc.addAttachment(doc.getId(), file);

@@ -1,6 +1,7 @@
 package com.insightweave.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 public record FileAssetDto(
         Long id,
@@ -9,5 +10,6 @@ public record FileAssetDto(
         long sizeBytes,
         Instant createdAt,
         Instant updatedAt,
-        String extractedText
+        String extractedText,
+        List<SummaryDto> summaries
 ) {}
